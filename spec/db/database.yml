@@ -1,0 +1,3 @@
+sqlite3:
+  :adapter: sqlite3
+  :dbfile: vendor/plugins/sitemappable/spec/db/sitemappable.sqlite3.db

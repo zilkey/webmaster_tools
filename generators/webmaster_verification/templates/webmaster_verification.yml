@@ -1,0 +1,24 @@
+# WebmasterVerification Configuration
+#
+# Add your webmaster verification keys to this file
+# Currently, only Google, Yahoo! and Live are supported
+#
+# For Google, add the filename
+# For Yahoo!, add the filename and the content to go in the file
+# For Live, add the user's id
+#
+# You can add several different users to each service,
+# or no users at all, and the names don't have to be the
+# same from one browser to the next - they are just there
+# to make it easy to identify who owns what
+#
+# Example:
+#
+#   google:
+#     user: google151515.html
+#   yahoo:
+#     user:
+#       filename: y_key_151515.html
+#       content: 151515
+#   live:
+#     user: 151515

@@ -1,0 +1,171 @@
+= Webmaster Tools
+
+WebmasterTools is a plugin that covers helps webmasters manage their sites with major search engines more easily.  It is comprised of 3 parts:
+
+* WebmasterVerification - Manage your HTML verification with a simple YAML file
+* Sitemaps - Generate valid XML sitemaps for your models, and add your own static sitemaps
+* GoogleSitemapGenerator - Use a rake task to use the google_sitemap_gen tool to generate xml sitemaps for static files
+
+== WebmasterVerification
+
+This plugin adds support for Google, Yahoo! and Live webmaster tool authorization 
+for multiple webmasters.
+
+Google, Yahoo! and Live (MSN) all have online tools for webmasters.  Each
+site requires that users verify ownership by either adding meta tags to
+pages on the site or upload specially-named HTML files.  For more information, see:
+
+* https://www.google.com/webmasters/tools/
+* https://siteexplorer.search.yahoo.com/
+* http://webmaster.live.com/
+
+Before this plugin there were 2 ways to add files to your site: add custom routes
+or keep the files in the public directory.  Whenever a new webmaster needs
+authorization, you would add a route or add a physical html file.
+
+Adding routes was simple and easy, but every time you updated the app you needed
+to restart the server.  Adding files didn't require a server restart, but added
+a lots of ugly files to the app.
+
+This plugin allows you to add users by adding an entry to a config file so 
+you don't have to store physical files, and you don't have to add routes or
+restart the server (the yaml config is not cached).
+
+== Installation
+
+Via git:
+
+  git clone git://github.com/zilkey/webmaster_tools.git vendor/plugins/webmaster_tools
+
+Once it's installed run:
+
+  script/generate webmaster_verification
+  
+The generator 
+
+* creates a file named config/webmaster_verification.yml
+* adds a "map.webmaster_verification" to config/routes.rb
+
+To create a sitemap for a model, just add:
+
+  class Project < ActiveRecord::Base
+    sitemappable
+  end
+
+=== config/webmaster_verification.yml
+
+You can add several different users to each service,
+or no users at all, and the names don't have to be the
+same from one browser to the next - they are just there
+to make it easy to identify who owns what.
+
+To make it easier, you can also specify people's email
+addresses.
+
+When you make changes to this file, you do not need to 
+restart the server
+
+A sample file might look like:
+
+  google:
+    example@example.com: google121212.html
+    edna: google131415.html
+    betty: google3435365.html
+  yahoo.com:
+    eugene:
+      filename: y_key_185746.html
+      content: 098374
+    edna:
+      filename: y_key_185746.html
+      content: 323454
+  live:
+    edna: 6565656564734839
+
+=== map.webmaster_verification
+
+map.webmaster_verification takes all of the entries in the config file and
+turns them into routes for Google and Yahoo! and installs the route to
+the Live xml file.
+
+The route, once installed, looks like:
+
+  ActionController::Routing::Routes.draw do |map|
+    map.webmaster_verification
+  end
+
+Once installed, and you've put entries into routes.rb, run
+
+  rake routes
+  
+and you will notice routes that look like:
+
+  /google5e12de32b7292ab0.html     {:controller=>"zilkey/routing/webmaster_verification", :action=>"standard"}
+  /y_key_7c13d2bfdaa79c25.html     {:controller=>"zilkey/routing/webmaster_verification", :action=>"standard", :content=>"111e174241ecc5e0"}
+  /LiveSearchSiteAuth.xml          {:format=>"xml", :controller=>"zilkey/routing/webmaster_verification", :action=>"live"}
+
+=== WebmasterVerificationController
+
+Behind the scenes, the routes map to a controller named Zilkey::Routing::WebmasterVerification
+
+This controller renders the content directly, and does not modify view paths
+
+== Sitemaps
+
+There are 3 kinds of sitemaps:
+
+* Sitemap index file (lists all other site maps)
+* Sitemap file dynamically created for a model
+* Custom sitemap you created
+
+To include a model in the sitemap, just add "sitemappable"
+
+  class Project < ActiveRecord::Base
+    sitemappable
+  end
+
+To add a custom sitemap, add a file to config/initializers named webmaster_verification.rb and include them.  Let's say you wanted to define a new custom sitemap that lived in public/static_sitemap.xml, you would add:
+
+  WebmasterTools::Sitemaps::Defaults.host = case RAILS_ENV
+  when "production": "example.com"
+  else "localhost:3033"
+  end
+
+You can configure defaults on 2 levels - globally and per-model.  In addition, you can override the defaults for any given record.
+
+  WebmasterTools::Sitemaps::Defaults.lastmod_field = "updated_at"
+  WebmasterTools::Sitemaps::Defaults.priority = "0.7"
+  WebmasterTools::Sitemaps::Defaults.changefreq = "weekly"
+  WebmasterTools::Sitemaps::Defaults.protocol = "http://"
+  WebmasterTools::Sitemaps.add(:path => "/static_sitemap.xml", :lastmod =>  File::Stat.new(File.join(RAILS_ROOT,"public","static_sitemap.xml")).mtime )
+
+To enable sitemaps, configure your routes.rb to look like this:
+
+  ActionController::Routing::Routes.draw do |map|
+    map.xml_sitemap
+    etc...
+  end
+
+=== Disclaimers for Sitemaps
+
+No caching occurs in any part of this process - every time Google, Yahoo! or Live request the page, the config file is loaded from disk, and the controller renders the response.
+
+Adding urls to models is really a hack.  If I were slicker, I'd find a way to tie this into routing, or at least action_controller.
+
+== google_sitemap_gen
+
+  rake webmaster_tools:google_sitemap_gen
+  
+Looks in the config/webmaster_tools directory for a file named #{RAILS_ENV}.rb - so development.rb if you run it in development mode.
+
+Copy the sitemap xml file from the plugin's google_sitemap_gen directory.  This is useful if you also have static files somewhere in your site.
+
+== Acknowledgments
+
+Part of this plugin was based on (read "shamelessly-stolen-from") the Jamis Buck's excellent series on routing at http://weblog.jamisbuck.org/2006/10/20/monkey-patching-rails-extending-routes-1
+
+== TODO
+
+* Add sitemap index support and individual sitemap routes
+* Add 50000 page limit to every model
+* Update docs to be more instructive about what happens behind the scenes
+* Use polymorphic_url and url_for to generate links and take a lot of complexity out of the app and the Node architecture
